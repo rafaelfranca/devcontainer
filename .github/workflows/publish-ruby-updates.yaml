@@ -86,7 +86,7 @@ jobs:
           publish-features: "true"
           generate-docs: "true"
           base-path-to-features: "/tmp/features-publish/src"
-          features-namespace: "rails/devcontainer/features"
+          features-namespace: "rafaelfranca/devcontainer/features"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
