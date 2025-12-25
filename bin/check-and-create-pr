@@ -33,7 +33,7 @@ fi
 echo "Adding Ruby versions:" >&2
 for VERSION in $NEW_VERSIONS; do
   echo "Adding Ruby $VERSION..." >&2
-  node bin/add-ruby-version "$VERSION"
+  node bin/add-ruby-version "$VERSION" >&2
 done
 
 # Create pull request
