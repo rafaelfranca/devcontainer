@@ -8,37 +8,37 @@ set -euo pipefail
 
 GITHUB_TOKEN="${1:-${GITHUB_TOKEN:-}}"
 
-echo "Checking for new Ruby versions..."
+echo "Checking for new Ruby versions..." >&2
 NEW_VERSIONS=$(bin/find-new-ruby-versions "$GITHUB_TOKEN")
 
 if [ -z "$NEW_VERSIONS" ]; then
-  echo "No new Ruby versions found."
+  echo "No new Ruby versions found." >&2
   exit 0
 fi
 
-echo "New versions found:"
-echo "$NEW_VERSIONS"
+echo "New versions found:" >&2
+echo "$NEW_VERSIONS" >&2
 
 # Check for existing automation PR
-echo "Checking for existing automation PRs..."
+echo "Checking for existing automation PRs..." >&2
 EXISTING_PR=$(gh pr list --label "automation,ruby-versions" --state open --json number --jq '.[0].number')
 
 if [ -n "$EXISTING_PR" ]; then
-  echo "Found existing PR #$EXISTING_PR, closing it..."
+  echo "Found existing PR #$EXISTING_PR, closing it..." >&2
   gh pr close "$EXISTING_PR" \
     --comment "Closing this PR as new Ruby versions are available. A new PR will be created."
 fi
 
 # Add new Ruby versions
-echo "Adding Ruby versions:"
+echo "Adding Ruby versions:" >&2
 for VERSION in $NEW_VERSIONS; do
-  echo "Adding Ruby $VERSION..."
+  echo "Adding Ruby $VERSION..." >&2
   node bin/add-ruby-version "$VERSION"
 done
 
 # Create pull request
-echo "Creating pull request..."
+echo "Creating pull request..." >&2
 PR_NUMBER=$(bin/create-ruby-versions-pr "$NEW_VERSIONS")
 
-echo "Created PR #$PR_NUMBER"
+echo "Created PR #$PR_NUMBER" >&2
 echo "$PR_NUMBER"
