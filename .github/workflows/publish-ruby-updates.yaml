@@ -145,54 +145,31 @@ jobs:
     permissions:
       contents: write
     outputs:
-      image_tag: ${{ steps.create-tag.outputs.tag }}
+      image_tag: ${{ steps.create-release.outputs.tag }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Create and push image tag
-        id: create-tag
+      - name: Create image release and tag
+        id: create-release
         env:
           GH_TOKEN: ${{ secrets.RUBY_AUTOMATION_PAT }}
         run: |
           VERSION="${{ needs.detect-ruby-update.outputs.new_version }}"
           IMAGE_TAG="ruby-${VERSION}"
 
-          echo "Creating image tag: $IMAGE_TAG"
+          echo "Creating release and tag: $IMAGE_TAG"
 
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          git tag "$IMAGE_TAG"
-          git push origin "$IMAGE_TAG"
-
-          echo "tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
-          echo "Image tag pushed. The publish-new-image-version workflow will be triggered automatically."
-
-  create-image-release:
-    needs: [detect-ruby-update, publish-full-image]
-    if: needs.detect-ruby-update.outputs.has_feature_bump == 'true'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Create GitHub Release for image
-        env:
-          GH_TOKEN: ${{ secrets.RUBY_AUTOMATION_PAT }}
-        run: |
-          TAG="${{ needs.publish-full-image.outputs.image_tag }}"
-          VERSION="${{ needs.detect-ruby-update.outputs.new_version }}"
-
-          echo "Creating release for $TAG..."
-
-          gh release create "$TAG" \
+          gh release create "$IMAGE_TAG" \
             --title "Ruby Image $VERSION" \
             --generate-notes \
-            --notes "Published Ruby devcontainer images for all supported Ruby versions with feature version $VERSION. \n \
-            Images are available at \`ghcr.io/rails/devcontainer/images/ruby\` with tags like \`$VERSION-3.3.0\`, \`$VERSION-3.4.0\`, etc."
+            --notes "Published Ruby devcontainer images for all supported Ruby versions with feature version $VERSION.
+
+            Images are available at \`ghcr.io/rails/devcontainer/images/ruby\` with tags like \`$VERSION-3.3.0\`, \`$VERSION-3.4.0\`, etc." \
+            --target main
+
+          echo "tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
+          echo "Release and tag created. The publish-new-image-version workflow will be triggered automatically."
 
   publish-new-ruby-versions:
     needs: detect-ruby-update
@@ -223,7 +200,7 @@ jobs:
           echo "Workflow triggered successfully!"
 
   notify-failure:
-    needs: [detect-ruby-update, publish-feature, create-feature-release, publish-full-image, create-image-release, publish-new-ruby-versions]
+    needs: [detect-ruby-update, publish-feature, create-feature-release, publish-full-image, publish-new-ruby-versions]
     if: failure()
     runs-on: ubuntu-latest
     permissions:
@@ -238,7 +215,6 @@ jobs:
               'publish-feature': '${{ needs.publish-feature.result }}',
               'create-feature-release': '${{ needs.create-feature-release.result }}',
               'publish-full-image': '${{ needs.publish-full-image.result }}',
-              'create-image-release': '${{ needs.create-image-release.result }}',
               'publish-new-ruby-versions': '${{ needs.publish-new-ruby-versions.result }}'
             };
 
