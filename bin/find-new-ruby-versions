@@ -9,7 +9,7 @@ set -euo pipefail
 MIN_RUBY_VERSION="${MIN_RUBY_VERSION:-3.2.0}"
 
 GITHUB_TOKEN="${1:-${GITHUB_TOKEN:-}}"
-MATRIX_FILE=".github/workflows/publish-new-image-version.yaml"
+VERSIONS_FILE=".github/ruby-versions.json"
 
 # Set up auth header if token provided
 if [ -n "$GITHUB_TOKEN" ]; then
@@ -35,8 +35,8 @@ AVAILABLE_VERSIONS=$(curl -s ${AUTH_HEADER:+-H "$AUTH_HEADER"} \
   awk -F. -v maj="$MIN_MAJOR" -v min="$MIN_MINOR" '$1 > maj || ($1 == maj && $2 >= min)' | \
   sort -V)
 
-# Extract current versions from matrix
-CURRENT_VERSIONS=$(yq eval '.jobs.build.strategy.matrix.RUBY_VERSION[]' "$MATRIX_FILE" | sort -V)
+# Extract current versions from JSON file
+CURRENT_VERSIONS=$(jq -r '.[]' "$VERSIONS_FILE" | sort -V)
 
 # Find versions in available but not in current
 comm -23 <(echo "$AVAILABLE_VERSIONS") <(echo "$CURRENT_VERSIONS")

@@ -205,7 +205,7 @@ jobs:
           gh release create "$TAG" \
             --title "Ruby Image $VERSION" \
             --generate-notes \
-            --notes "Published Ruby devcontainer images for all supported Ruby versions with feature version $VERSION. \n
+            --notes "Published Ruby devcontainer images for all supported Ruby versions with feature version $VERSION. \n \
             Images are available at \`ghcr.io/rails/devcontainer/images/ruby\` with tags like \`$VERSION-3.3.0\`, \`$VERSION-3.4.0\`, etc."
 
   publish-new-ruby-versions:
