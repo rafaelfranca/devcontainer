@@ -75,12 +75,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Temporarily isolate Ruby feature
+        run: |
+          mkdir -p /tmp/features-publish/src
+          cp -r features/src/ruby /tmp/features-publish/src/
+
       - name: Publish Ruby feature
         uses: devcontainers/action@v1
         with:
           publish-features: "true"
           generate-docs: "true"
-          base-path-to-features: "./features/src/ruby"
+          base-path-to-features: "/tmp/features-publish/src"
           features-namespace: "rails/devcontainer/features"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -119,7 +124,7 @@ jobs:
 
       - name: Create GitHub Release for feature
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.RUBY_AUTOMATION_PAT }}
         run: |
           TAG="${{ needs.publish-feature.outputs.feature_tag }}"
           VERSION="${{ needs.detect-ruby-update.outputs.new_version }}"
@@ -147,6 +152,8 @@ jobs:
 
       - name: Create and push image tag
         id: create-tag
+        env:
+          GH_TOKEN: ${{ secrets.RUBY_AUTOMATION_PAT }}
         run: |
           VERSION="${{ needs.detect-ruby-update.outputs.new_version }}"
           IMAGE_TAG="ruby-${VERSION}"
@@ -160,28 +167,7 @@ jobs:
           git push origin "$IMAGE_TAG"
 
           echo "tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
-
-      - name: Wait for image build completion
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          IMAGE_TAG="${{ steps.create-tag.outputs.tag }}"
-
-          echo "Waiting for image build workflow to start..."
-          sleep 10
-
-          # Find the workflow run triggered by our tag
-          RUN_ID=$(gh run list --workflow "publish-new-image-version.yaml" \
-            --json databaseId,headBranch,status \
-            --jq ".[] | select(.headBranch == \"$IMAGE_TAG\") | .databaseId" | head -n 1)
-
-          if [ -n "$RUN_ID" ]; then
-            echo "Found workflow run: $RUN_ID"
-            echo "Watching workflow run..."
-            gh run watch "$RUN_ID" --exit-status
-          else
-            echo "Warning: Could not find workflow run for tag $IMAGE_TAG"
-          fi
+          echo "Image tag pushed. The publish-new-image-version workflow will be triggered automatically."
 
   create-image-release:
     needs: [detect-ruby-update, publish-full-image]
@@ -195,7 +181,7 @@ jobs:
 
       - name: Create GitHub Release for image
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.RUBY_AUTOMATION_PAT }}
         run: |
           TAG="${{ needs.publish-full-image.outputs.image_tag }}"
           VERSION="${{ needs.detect-ruby-update.outputs.new_version }}"
@@ -221,7 +207,7 @@ jobs:
 
       - name: Trigger publish new Ruby versions workflow
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.RUBY_AUTOMATION_PAT }}
         run: |
           NEW_VERSIONS='${{ needs.detect-ruby-update.outputs.new_ruby_versions }}'
           IMAGE_VERSION='["${{ needs.detect-ruby-update.outputs.current_image_version }}"]'
