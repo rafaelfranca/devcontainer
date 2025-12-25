@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Create a pull request for new Ruby versions
+# Usage: bin/create-ruby-versions-pr <new_versions_multiline>
+# Output: PR number
+
+NEW_VERSIONS="${1:-}"
+
+if [ -z "$NEW_VERSIONS" ]; then
+  echo "Usage: bin/create-ruby-versions-pr <new_versions>" >&2
+  exit 1
+fi
+
+VERSION_COUNT=$(echo "$NEW_VERSIONS" | wc -l)
+VERSION_LIST=$(echo "$NEW_VERSIONS" | tr '\n' ', ' | sed 's/,$//')
+
+BRANCH_NAME="automated/ruby-versions-$(date +%Y%m%d-%H%M%S)"
+
+git config user.name "github-actions[bot]"
+git config user.email "github-actions[bot]@users.noreply.github.com"
+
+git checkout -b "$BRANCH_NAME"
+git add .
+git commit -m "Add Ruby versions: $VERSION_LIST [automated-ruby-update]"
+git push origin "$BRANCH_NAME"
+
+PR_BODY="## 🤖 Automated Ruby Version Update
+
+This PR adds $VERSION_COUNT new Ruby version(s) detected from [rbenv/ruby-build](https://github.com/rbenv/ruby-build):
+
+\`\`\`
+$NEW_VERSIONS
+\`\`\`
+
+### Changes Made
+
+- Updated Ruby version matrix in \`.github/workflows/publish-new-image-version.yaml\`
+- Updated default Ruby version in \`features/src/ruby/devcontainer-feature.json\` (if applicable)
+- Updated documentation in \`features/src/ruby/README.md\` (if applicable)
+- Updated test files to use new default version (if applicable)
+- Bumped feature version (if default Ruby version changed)
+
+### Next Steps
+
+After this PR is merged:
+1. Feature will be published automatically if version was bumped
+2. Images will be built and published (requires approval)
+3. GitHub releases will be created
+
+---
+
+*This PR was created automatically by the Ruby version checker workflow.*"
+
+if [ -n "${GITHUB_SERVER_URL:-}" ] && [ -n "${GITHUB_REPOSITORY:-}" ] && [ -n "${GITHUB_RUN_ID:-}" ]; then
+  PR_BODY="$PR_BODY
+*Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}*"
+fi
+
+gh pr create \
+  --title "Add Ruby versions: $VERSION_LIST" \
+  --body "$PR_BODY" \
+  --label "automation,ruby-versions" \
+  --base main \
+  --head "$BRANCH_NAME" | grep -oP '\d+$'
