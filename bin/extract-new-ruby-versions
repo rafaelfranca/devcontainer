@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Extract new Ruby versions from git diff
+# Usage: bin/extract-new-ruby-versions [format]
+# format: lines (default) or json
+# Output: New Ruby versions added in the last commit
+
+MATRIX_FILE=".github/workflows/publish-new-image-version.yaml"
+FORMAT="${1:-lines}"
+
+# Get the added lines from the matrix
+NEW_VERSIONS=$(git diff HEAD~1 HEAD "$MATRIX_FILE" | \
+  grep '^+' | \
+  grep -E '^\+\s+-\s+[0-9]+\.[0-9]+\.[0-9]+' | \
+  sed 's/^+\s*-\s*//' | \
+  sort -V)
+
+if [ -z "$NEW_VERSIONS" ]; then
+  if [ "$FORMAT" = "json" ]; then
+    echo "[]"
+  fi
+  exit 0
+fi
+
+if [ "$FORMAT" = "json" ]; then
+  echo "$NEW_VERSIONS" | jq -R -s -c 'split("\n") | map(select(length > 0))'
+else
+  echo "$NEW_VERSIONS"
+fi
